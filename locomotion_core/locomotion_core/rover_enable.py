@@ -20,18 +20,18 @@ try:
     import Jetson.GPIO as GPIO
     GPIO.setmode(GPIO.BOARD)
     GPIO.setup(contactorPin, GPIO.OUT, initial=GPIO.HIGH)
-    board_id = 2
+    board_id = 1
 except:
     pass
 
 class duEnable(Node):
 
     def __init__(self):
-        super().__init__('rover_enable')
+        super().__init__('rover2_enable')
         self.inCmd = 0.0
         self.subscription = self.create_subscription(
             Bool,
-            'r4/enable',
+            'r2/enable',
             self.enable_callback,
             5)
         self.subscription  # prevent unused variable warning

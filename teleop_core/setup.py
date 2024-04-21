@@ -23,7 +23,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'rover2_joy = rover_teleop_joy.run_joy:main',
+            'rover2_joy = teleop_core.run_joy:main',
         ],
     },
 )

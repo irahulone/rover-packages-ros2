@@ -26,7 +26,7 @@ class joy_process(Node):
     
     
     def joy_callback(self, msg):
-        self.publisher_cmd_vel = self.create_publisher(Twist, 'r2/cmd_vel', 10)
+        self.publisher_cmd_vel = self.create_publisher(Twist, 'r2/joy/cmd_vel', 5)
         self.publisher_en = self.create_publisher(Bool, 'r2/enable', 1)
 
         j_lx = msg.axes[self.lx_axisN]
