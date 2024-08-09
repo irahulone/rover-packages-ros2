@@ -1,11 +1,11 @@
-from setuptools import setup
+from setuptools import find_packages, setup
 
-package_name = 'gps_diff_rtk_ublox'
+package_name = 'gps_core'
 
 setup(
     name=package_name,
     version='0.0.0',
-    packages=[package_name],
+    packages=find_packages(exclude=['test']),
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -20,7 +20,8 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'gps_run = gps_diff_rtk_ublox.gps_run:main'
+            'run_gps1 = gps_core.run_gps1:main',
+            'diff_gps_run = gps_core.diff_gps_run:main',
         ],
     },
 )
