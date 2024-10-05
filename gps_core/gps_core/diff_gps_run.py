@@ -6,8 +6,12 @@ from std_msgs.msg import Float32
 
 from ublox_gps import UbloxGps
 import serial
-import numpy
+import numpy as np
 import math
+
+DEBUG = false
+
+timer_period = 0.1  # seconds
 
 port_gps1 = serial.Serial('/dev/ttyACM1', baudrate=38400, timeout=1)
 port_gps2 = serial.Serial('/dev/ttyACM0', baudrate=38400, timeout=1)
@@ -23,19 +27,25 @@ class read_gps_data(Node):
         self.publisher_gps2 = self.create_publisher(NavSatFix, '/r1/gps2', 2)
         self.publisher_gps_agg = self.create_publisher(NavSatFix, '/r1/gps_agg', 2)
         self.publisher_brng = self.create_publisher(Float32, '/r1/heading', 2)
-        timer_period = 0.1  # seconds
         self.timer = self.create_timer(timer_period, self.gps_callback)
-        self.i = 0
 
     def get_bearing(self, lat1, long1, lat2, long2):
-        dLon = (long2 - long1)
+        dLon_rad = math.radians(long2 - long1)
         #print(long1)
-        x = math.cos(math.radians(lat2)) * math.sin(math.radians(dLon))
-        y = math.cos(math.radians(lat1)) * math.sin(math.radians(lat2)) - math.sin(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.cos(math.radians(dLon))
-        brng = numpy.arctan2(x,y)
-        brng = 90 -  numpy.degrees(brng) - 30
+
+        lat1_rad = math.radians(lat2)
+        lat2_rad = math.radians(lat1)
+        long1_rad = math.radians(long1)
+        long2_rad = math.radians(long2)
+
+        x = math.cos(lat2_rad) * math.sin(dLon_rad)
+        y = math.cos(lat1_rad) * math.sin(lat2_rad) - math.sin(lat1_rad) * math.cos(lat2_rad) * math.cos(dLon_rad)
+        
+        brng = np.arctan2(x,y)
+        brng = 90 -  math.degrees(brng) - 30
+
         if (brng < 0):
-            brng = 360 + brng
+            brng += 360
         print(brng)
         brng_msg = Float32()
         brng_msg.data = brng
@@ -58,20 +68,22 @@ class read_gps_data(Node):
         try:
             coords_gps1 = gps1.geo_coords()
             coords_gps2 = gps2.geo_coords()
-
-            gps1_lat = coords_gps1.lat
-            gps1_lon = coords_gps1.lon
-            gps2_lat = coords_gps2.lat
-            gps2_lon = coords_gps2.lon
-
-            #print(coorids.lon, coords.lat)
-
-            self.get_bearing(gps1_lat, gps1_lon, gps2_lat, gps2_lon)
-            self.aggregate_gps(gps1_lat, gps1_lon, gps2_lat, gps2_lon)
             
         except (ValueError, IOError) as err:
-            print(err)
+            if DEBUG:
+                print("gps failure")
+            return
 
+        gps1_lat = coords_gps1.lat
+        gps1_lon = coords_gps1.lon
+        gps2_lat = coords_gps2.lat
+        gps2_lon = coords_gps2.lon
+
+        if DEBUG:
+            print(coorids.lon, coords.lat)
+
+        self.get_bearing(gps1_lat, gps1_lon, gps2_lat, gps2_lon)
+        self.aggregate_gps(gps1_lat, gps1_lon, gps2_lat, gps2_lon)
 
         msg1 = NavSatFix()
         msg1.latitude = gps1_lat
@@ -83,7 +95,6 @@ class read_gps_data(Node):
 
         self.publisher_gps1.publish(msg1)
         self.publisher_gps2.publish(msg2)
-        self.i += 1
 
 
 def main(args=None):
@@ -102,4 +113,3 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
-
