@@ -3,7 +3,7 @@ from rclpy.node import Node
 from std_msgs.msg import Int16
 
 global serialFlag
-serialFlag = 1;
+serialFlag = 1
 
 import serial
 roboteq_obj = serial.Serial(
