@@ -1,0 +1,5 @@
+NavSatFix[] start_end_points
+---
+NavSatFix current_position
+---
+int32 dist

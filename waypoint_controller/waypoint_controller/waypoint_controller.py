@@ -19,10 +19,6 @@ class WaypointController(Node):
         self.ref_heading = 10.0
         self.heading_error_i = 0.0
 
-        self.gps1lat = 0.0
-        self.gps1lon = 0.0
-        self.gps2lat = 0.0
-        self.gps2lon = 0.0
         self.rover_lat = 0.0
         self.rover_lon = 0.0
 
@@ -48,8 +44,7 @@ class WaypointController(Node):
         # Subscribers
         self.create_subscription(Float32, 'ar1_heading', self.rover_heading_callback, 5)
         self.create_subscription(Int16, 'r1/path_id', self.path_id_callback, 5)
-        self.create_subscription(NavSatFix, 'gps1', self.gps1_callback, 5)
-        self.create_subscription(NavSatFix, 'gps2', self.gps2_callback, 5)
+        self.create_subscription(NavSatFix,'/r1/gps_agg',self.gps_agg_cb, 10)
         self.create_subscription(NavSatFix, '/r1/ref_coordinate1', self.ref_coord1_callback, 5)
         self.create_subscription(NavSatFix, '/r1/ref_coordinate2', self.ref_coord2_callback, 5)
 
@@ -59,13 +54,9 @@ class WaypointController(Node):
     def rover_heading_callback(self, msg):
         self.rover_heading = msg.data
 
-    def gps1_callback(self, msg):
-        self.gps1lat = msg.latitude
-        self.gps1lon = msg.longitude
-
-    def gps2_callback(self, msg):
-        self.gps2lat = msg.latitude
-        self.gps2lon = msg.longitude
+    def gps_agg_cb(self, msg):
+        self.r_lat = msg.latitude
+        self.r_lon = msg.longitude
 
     def ref_coord1_callback(self, msg):
         self.ref_coord_1_lat = msg.latitude
@@ -77,6 +68,14 @@ class WaypointController(Node):
 
     def path_id_callback(self, msg):
         self.path_id = msg.data
+
+    def saturation_fn(self, val, upper_bound, lower_bound):
+        x = val
+        if x > upper_bound:
+            x = upper_bound
+        elif x < lower_bound:
+            x = lower_bound
+        return x
 
     def get_bearing(self, lat1, lon1, lat2, lon2):
         dLon = (lon2 - lon1)
@@ -102,8 +101,8 @@ class WaypointController(Node):
     def control_loop(self):
         # Main control loop logic
         # (Adapt the ROS1 loop into here; logic remains largely unchanged)
-        rover_lat = (self.gps1lat + self.gps2lat)/2
-        rover_lon = (self.gps1lon + self.gps2lon)/2
+        rover_lat = self.r_lat
+        rover_lon = self.r_lon
         roverGPS = NavSatFix()
         roverGPS.latitude = rover_lat
         roverGPS.longitude = rover_lon
@@ -135,14 +134,6 @@ class WaypointController(Node):
         xte = d*100000
 
         ref_heading = path_bearing - 10*xte
-        if(self.path_id == 1):
-            ref_heading = path_bearing - 11*xte
-        if(self.path_id == 2):
-            ref_heading = path_bearing + 11*xte
-        if(self.path_id == 3):
-            ref_heading = path_bearing - 11*xte
-        if(self.path_id == 4):
-            ref_heading = path_bearing - 12*xte
 
         if (ref_heading < 0):
             ref_heading = 360 + ref_heading
