@@ -24,6 +24,7 @@ class WaypointActionServer(Node):
         self.ref_coords2 = self.create_publisher(NavSatFix, '/r1/ref_coordinate2', 5)
 
         self.create_subscription(Float32, '/r1/dist_to_goal_pose', self.dist_to_goal_callback, 5)
+        self.create_subscription(NavSatFix,'/r1/gps_agg',self.gps_agg_cb, 5)
 
     async def execute_callback(self, goal_handle):
         self.get_logger().info('Executing goal...')
@@ -56,11 +57,15 @@ class WaypointActionServer(Node):
         goal_handle.succeed()
 
         result = waypoint.Result()
-        result.current_position = []
+        result.current_position = NavSatFix(latitude=self.r_lat, longitude=-self.r_lon)
         return result
 
     def dist_to_goal_callback(self, msg):
         self.dist = msg.data
+
+    def gps_agg_cb(self, msg):
+        self.r_lat = msg.latitude
+        self.r_lon = msg.longitude
 
 
 def main(args=None):

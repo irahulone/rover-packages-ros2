@@ -1,0 +1,77 @@
+import rclpy
+from rclpy.action import ActionClient
+from rclpy.node import Node
+
+from std_msgs.msg import Float32, Int16, Bool
+from geometry_msgs.msg import Twist
+from sensor_msgs.msg import NavSatFix
+
+from actions import planter
+
+
+class PlanterActionClient(Node):
+
+    def __init__(self):
+        super().__init__('planter_action_client')
+        self._action_client = ActionClient(self, planter, 'planter_action')
+
+    def send_goal(self, order):
+        goal_msg = planter.Goal()
+        goal_msg.order = order
+
+        self._action_client.wait_for_server()
+
+        self._send_goal_future = self._action_client.send_goal_async(goal_msg)
+
+        self._send_goal_future.add_done_callback(self.goal_response_callback)
+
+    def goal_response_callback(self, future):
+        goal_handle = future.result()
+        if not goal_handle.accepted:
+            self.get_logger().info('Goal rejected :(')
+            return
+
+        self.get_logger().info('Goal accepted :)')
+
+        self._get_result_future = goal_handle.get_result_async()
+        self._get_result_future.add_done_callback(self.get_result_callback)
+
+    def get_result_callback(self, future):
+        result = future.result().result
+        self.get_logger().info('Result: {0}'.format(result.sequence))
+        rclpy.shutdown()
+
+
+def main(args=None):
+    rclpy.init(args=args)
+
+    action_client = PlanterActionClient()
+
+    goals = [[
+                NavSatFix(latitude=34.0522, longitude=-118.2437),  # Example data
+                NavSatFix(latitude=36.7783, longitude=-119.4179)
+            ],
+            [
+                NavSatFix(latitude=36.7783, longitude=-119.4179),  
+                NavSatFix(latitude=37.7749, longitude=-122.4194)
+            ]
+    ]
+
+    for i, goal_data in enumerate(goals):
+        action_client.get_logger().info(f"Sending goal {i + 1}/{len(goals)}...")
+        send_goal_future = action_client.send_goal(goal_data)
+        rclpy.spin_until_future_complete(action_client, send_goal_future)
+
+        # Wait for the result of this goal
+        result = action_client.wait_for_result(send_goal_future)
+        if result is not None:
+            action_client.get_logger().info(f"Result for goal {i + 1}: {result.dist}")
+        else:
+            action_client.get_logger().info(f"Goal {i + 1} failed or was rejected.")
+
+
+    rclpy.spin(action_client)
+
+
+if __name__ == '__main__':
+    main()

@@ -1,25 +1,20 @@
-
 #include <TFMPlus.h> // Include TFMini Plus Library v1.5.0
+#include <G2MotorDriver.h>
 
 TFMPlus dispenser_dist_sensor; // Create a TFMini Plus object
 TFMPlus auger_dist_sensor;
 
-int laser_pin = 6;
-int reciever_pin = 7;
-int distance_sensor_pin = 3;
+//  G2MotorDriver24v21(unsigned char DIR, unsigned char PWM, unsigned char SLP, unsigned char FLT, unsigned char CS)
+G2MotorDriver24v21 lin_motor = G2MotorDriver24v21();
+G2MotorDriver24v21 drill_motor = G2MotorDriver24v21();
+
+int dispenserBaseDistance = 0;
+int augerBaseDistance = 0;
+int offset == 5;
 
 int num_of_saplings = 0;
 bool prev_laser_status = true;
 
-bool getLaserSensor()
-{
-    return digitalRead(reciever_pin);
-}
-
-bool getDistanceSensor()
-{
-    return digitalRead(distance_sensor_pin);
-}
 
 int* distanceSensor(TFMPlus tfmP)
 {
@@ -31,6 +26,94 @@ int* distanceSensor(TFMPlus tfmP)
     {
         return -1;
     }
+}
+
+void stopIfFault(G2MotorDriver24v21 motor)
+{
+    if (md.getFault())
+    {
+        md.Sleep(); // put the driver to sleep on fault
+        delay(1);
+        Serial.println("Motor fault");
+    }
+}
+
+bool blocking(int dist)
+{
+    if(dist < dispenserBaseDistance - offset)
+    {
+        return true;
+    }
+    return false;
+}
+
+void forwardMotor(G2MotorDriver24v21 motor, int speed)
+{
+    motor.setSpeed(speed);
+    stopIfFault(motor);
+}
+
+void reverseMotor(G2MotorDriver24v21 motor, int speed)
+{
+    motor.setSpeed(-speed);
+    stopIfFault(motor);
+}
+
+void turnOffMotor(G2MotorDriver24v21 motor)
+{
+    motor.setSpeed(0);
+    stopIfFault(motor);
+}
+
+void sendPayload(int d1, int d2, bool block)
+{
+    Serial.println("START");
+    Serial.print("ActuatorDistance:");
+    Serial.println(distanceSensor(dispenser_dist_sensor));
+    Serial.print("DispenserDistance:");
+    Serial.println(distanceSensor(auger_dist_sensor));
+    Serial.print("Blocking:");
+    Serial.println(block);
+    Serial.println("END");
+}
+
+bool accept_input(int timeout)
+{
+    time_t start = millis();
+    time_t current = start;
+    bool isInput = false;
+    while (current - start <= timeout)
+    {
+        current = millis();
+        if (Serial.available())
+        {
+            input.reserve(40);
+            input = Serial.readString();
+            input.trim();
+            Serial.print(input);
+            Serial.println(" Response:");
+            Serial.flush();
+            isInput = true;
+            break;
+        }
+    }
+    if (isInput)
+    {
+        String command = input.substring(0, 2);
+        if (command.compareTo("LF") == 0)
+            forwardMotor(lin_motor, 10);
+        else if (command.compareTo("LR") == 0)
+            reverseMotor(lin_motor, 10);
+        else if (command.compareTo("LO") == 0)
+            turnOffMotor(lin_motor);
+        else if (command.compareTo("DF") == 0)
+            forwardMotor(drill_motor, 20);
+        else if (command.compareTo("DR") == 0)
+            reverseMotor(drill_motor, 20);
+        else if (command.compareTo("DO") == 0)
+            turnOffMotor(drill_motor);
+    }
+    return isInput;
 }
 
 void setup()
@@ -69,21 +152,25 @@ void setup()
         print(".");
         println(auger_dist_sensor.version[2]);
     }
-}
+    // we want to calibrate the sensor to amke sure we know what the max distance is
 
-void sendPayload(int passes)
-{
-    Serial.println("START");
-    Serial.print("ActuatorDistance:");
-    Serial.println(distanceSensor());
-    Serial.print("DispenserDistance:");
-    Serial.println(getLaserSensor());
-    Serial.println("END");
+    md.init();
+    md.Wake(); // Wake the driver for current readings
+    md.calibrateCurrentOffset();
+    delay(10);
+    md.Sleep(); // Put the Motor driver into sleep mode until you need to use it.
+    delay(10);
 }
 
 void loop()
 {
     delay(100);
 
-    sendPayload(passes);
+    accept_input(5);
+
+    int dispenser_dist = distanceSensor(dispenser_dist_sensor);
+    int auger_dist = distanceSensor(auger_dist_sensor);
+    bool b = blocking(dispenser_dist);
+
+    sendPayload(dispenser_dist, auger_dist, b);
 }
