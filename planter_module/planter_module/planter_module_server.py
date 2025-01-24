@@ -15,6 +15,8 @@ from ser import Serial
 class PlanterActionServer(Node):
 
     def __init__(self):
+        serial = Serial("/dev/ttyACM0")
+        serial.set()
         super().__init__('fibonacci_action_server')
         self._action_server = ActionServer(
             self,
@@ -24,15 +26,19 @@ class PlanterActionServer(Node):
 
         #conver belt shit
         conv_motor_1 = MotorNode("1", "/dev/ttyACM1")
+        rclpy.init(None)
+        try:
+            rclpy.spin(conv_motor_1)
+        except KeyboardInterrupt:
+            conv_motor_1.get_logger().info('Shutting down node...')
+            conv_motor_1.destroy_node()
+            rclpy.shutdown()
         # conv_motor_2 = MotorNode("2", "/dev/ttyACM1")
         # conv_motor_3 = MotorNode("3", "/dev/ttyACM1")
 
         self.ref_coords1 = self.create_publisher(NavSatFix, '/r1/ref_coordinate1', 5)
         self.ref_coords2 = self.create_publisher(NavSatFix, '/r1/ref_coordinate2', 5)
         self.motor_1_speed = self.create_publisher(Int16, 'motor_1/set_speed', 5)
-
-        self.create_subscription(Float32, '/r1/dist_to_goal_pose', self.dist_to_goal_callback, 5)
-        self.create_subscription(NavSatFix,'/r1/gps_agg',self.gps_agg_cb, 5)
 
     def execute_callback(self, goal_handle):
         self.get_logger().info('Executing goal...')
@@ -47,7 +53,12 @@ class PlanterActionServer(Node):
         return result
 
     def stage_1(self):
-        self.motor_1_speed.publish()
+        speed = Int16(20)
+        self.motor_1_speed.publish(speed)
+
+        while(1):
+            
+            break
 
         
 
@@ -59,14 +70,8 @@ class PlanterActionServer(Node):
         return
 
     def getSensorData():
-        
 
-    def dist_to_goal_callback(self, msg):
-        self.dist = msg.data
 
-    def gps_agg_cb(self, msg):
-        self.r_lat = msg.latitude
-        self.r_lon = msg.longitude
 
 
 def main(args=None):

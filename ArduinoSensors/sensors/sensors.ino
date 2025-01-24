@@ -5,22 +5,25 @@ TFMPlus dispenser_dist_sensor; // Create a TFMini Plus object
 TFMPlus auger_dist_sensor;
 
 //  G2MotorDriver24v21(unsigned char DIR, unsigned char PWM, unsigned char SLP, unsigned char FLT, unsigned char CS)
-G2MotorDriver24v21 lin_motor = G2MotorDriver24v21();
-G2MotorDriver24v21 drill_motor = G2MotorDriver24v21();
+G2MotorDriver24v21 lin_motor = G2MotorDriver24v21(2, 3, 255, 255, 255);
+G2MotorDriver24v21 drill_motor = G2MotorDriver24v21(4, 5, 255, 255, 255);
 
 int dispenserBaseDistance = 0;
 int augerBaseDistance = 0;
-int offset == 5;
+int off = 5;
 
 int num_of_saplings = 0;
 bool prev_laser_status = true;
 
 
-int* distanceSensor(TFMPlus tfmP)
+int distanceSensor(TFMPlus tfmP)
 {
+    int16_t tfDist = 0;    // Distance to object in centimeters
+    int16_t tfFlux = 0;    // Strength or quality of return signal
+    int16_t tfTemp = 0;    // Internal temperature of Lidar sensor chip
     if (tfmP.getData(tfDist, tfFlux, tfTemp)) // Get data from the device.
     {
-        return [tfDist, tfFlux];
+        return tfDist;
     }
     else // If the command fails...
     {
@@ -28,40 +31,41 @@ int* distanceSensor(TFMPlus tfmP)
     }
 }
 
-void stopIfFault(G2MotorDriver24v21 motor)
+void stopIfFault(G2MotorDriver24v21 *motor)
 {
-    if (md.getFault())
+    if (motor->getFault())
     {
-        md.Sleep(); // put the driver to sleep on fault
+        motor->Sleep(); // put the driver to sleep on fault
         delay(1);
         Serial.println("Motor fault");
+        motor->Wake();
     }
 }
 
 bool blocking(int dist)
 {
-    if(dist < dispenserBaseDistance - offset)
+    if(dist < dispenserBaseDistance - off)
     {
         return true;
     }
     return false;
 }
 
-void forwardMotor(G2MotorDriver24v21 motor, int speed)
+void forwardMotor(G2MotorDriver24v21 *motor, int speed)
 {
-    motor.setSpeed(speed);
+    motor->setSpeed(speed);
     stopIfFault(motor);
 }
 
-void reverseMotor(G2MotorDriver24v21 motor, int speed)
+void reverseMotor(G2MotorDriver24v21 *motor, int speed)
 {
-    motor.setSpeed(-speed);
+    motor->setSpeed(-speed);
     stopIfFault(motor);
 }
 
-void turnOffMotor(G2MotorDriver24v21 motor)
+void turnOffMotor(G2MotorDriver24v21 *motor)
 {
-    motor.setSpeed(0);
+    motor->setSpeed(0);
     stopIfFault(motor);
 }
 
@@ -79,9 +83,10 @@ void sendPayload(int d1, int d2, bool block)
 
 bool accept_input(int timeout)
 {
-    time_t start = millis();
-    time_t current = start;
+    long long start = millis();
+    long long current = start;
     bool isInput = false;
+    String input;
     while (current - start <= timeout)
     {
         current = millis();
@@ -101,17 +106,17 @@ bool accept_input(int timeout)
     {
         String command = input.substring(0, 2);
         if (command.compareTo("LF") == 0)
-            forwardMotor(lin_motor, 10);
+            forwardMotor(&lin_motor, 300);
         else if (command.compareTo("LR") == 0)
-            reverseMotor(lin_motor, 10);
+            reverseMotor(&lin_motor, 300);
         else if (command.compareTo("LO") == 0)
-            turnOffMotor(lin_motor);
+            turnOffMotor(&lin_motor);
         else if (command.compareTo("DF") == 0)
-            forwardMotor(drill_motor, 20);
+            forwardMotor(&drill_motor, 200);
         else if (command.compareTo("DR") == 0)
-            reverseMotor(drill_motor, 20);
+            reverseMotor(&drill_motor, 200);
         else if (command.compareTo("DO") == 0)
-            turnOffMotor(drill_motor);
+            turnOffMotor(&drill_motor);
     }
     return isInput;
 }
@@ -130,41 +135,52 @@ void setup()
     delay(20);
     auger_dist_sensor.begin(&Serial3);
 
-    pinmode(laser_pin, OUTPUT);
-    pinmode(reciever_pin, INPUT);
-    pinmode(distance_sensor_pin, INPUT);
 
-    print("Firmware version: ");
+    Serial.print("Firmware version: ");
     if (dispenser_dist_sensor.sendCommand(GET_FIRMWARE_VERSION, 0))
     {
-        print(dispenser_dist_sensor.version[0]); // print three single numbers
-        print(".");
-        print(dispenser_dist_sensor.version[1]); // each separated by a dot
-        print(".");
-        println(dispenser_dist_sensor.version[2]);
+        Serial.print(dispenser_dist_sensor.version[0]); // print three single numbers
+        Serial.print(".");
+        Serial.print(dispenser_dist_sensor.version[1]); // each separated by a dot
+        Serial.print(".");
+        Serial.println(dispenser_dist_sensor.version[2]);
     }
-
-    if (auger_dist_sensor.sendCommand(GET_FIRMWARE_VERSION, 0))
-    {
-        print(auger_dist_sensor.version[0]); // print three single numbers
-        print(".");
-        print(auger_dist_sensor.version[1]); // each separated by a dot
-        print(".");
-        println(auger_dist_sensor.version[2]);
-    }
+//
+//    if (auger_dist_sensor.sendCommand(GET_FIRMWARE_VERSION, 0))
+//    {
+//        Serial.print(auger_dist_sensor.version[0]); // print three single numbers
+//        Serial.print(".");
+//        Serial.print(auger_dist_sensor.version[1]); // each separated by a dot
+//        Serial.print(".");
+//        Serial.println(auger_dist_sensor.version[2]);
+//    }
     // we want to calibrate the sensor to amke sure we know what the max distance is
+    
+    Serial.println("HANGUP #1");
+    dispenserBaseDistance = distanceSensor(dispenser_dist_sensor);
+    Serial.println("HANGUP #2");
+    lin_motor.init();
+    Serial.println("HANGUP #3");
+    lin_motor.Wake(); // Wake the driver for current readings
+    Serial.println("HANGUP #4");
+    lin_motor.calibrateCurrentOffset();
+    delay(10);
+    lin_motor.Sleep(); // Put the Motor driver into sleep mode until you need to use it.
+    delay(10);
 
-    md.init();
-    md.Wake(); // Wake the driver for current readings
-    md.calibrateCurrentOffset();
-    delay(10);
-    md.Sleep(); // Put the Motor driver into sleep mode until you need to use it.
-    delay(10);
+    lin_motor.Wake();
+
+//    drill_motor.init();
+//    drill_motor.Wake(); // Wake the driver for current readings
+//    drill_motor.calibrateCurrentOffset();
+//    delay(10);
+//    drill_motor.Sleep(); // Put the Motor driver into sleep mode until you need to use it.
+//    delay(10);
 }
 
 void loop()
 {
-    delay(100);
+    delay(50);
 
     accept_input(5);
 
