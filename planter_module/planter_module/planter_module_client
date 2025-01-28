@@ -47,29 +47,6 @@ def main(args=None):
 
     action_client = PlanterActionClient()
 
-    goals = [[
-                NavSatFix(latitude=34.0522, longitude=-118.2437),  # Example data
-                NavSatFix(latitude=36.7783, longitude=-119.4179)
-            ],
-            [
-                NavSatFix(latitude=36.7783, longitude=-119.4179),  
-                NavSatFix(latitude=37.7749, longitude=-122.4194)
-            ]
-    ]
-
-    for i, goal_data in enumerate(goals):
-        action_client.get_logger().info(f"Sending goal {i + 1}/{len(goals)}...")
-        send_goal_future = action_client.send_goal(goal_data)
-        rclpy.spin_until_future_complete(action_client, send_goal_future)
-
-        # Wait for the result of this goal
-        result = action_client.wait_for_result(send_goal_future)
-        if result is not None:
-            action_client.get_logger().info(f"Result for goal {i + 1}: {result.dist}")
-        else:
-            action_client.get_logger().info(f"Goal {i + 1} failed or was rejected.")
-
-
     rclpy.spin(action_client)
 
 
