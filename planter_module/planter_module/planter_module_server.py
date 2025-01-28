@@ -11,12 +11,14 @@ from actions import planter
 from motor_controller import MotorNode
 from ser import Serial
 
+import time
+
 
 class PlanterActionServer(Node):
 
     def __init__(self):
-        serial = Serial("/dev/ttyACM0")
-        serial.set()
+        self.serial = Serial("/dev/ttyACM0")
+        self.serial.set()
         super().__init__('fibonacci_action_server')
         self._action_server = ActionServer(
             self,
@@ -53,23 +55,86 @@ class PlanterActionServer(Node):
         return result
 
     def stage_1(self):
+        self.serial.drillMotor("forward")
+        self.serial.linActMotor("forward")
+
+        recieved_serial = self.serial.getOutput()
+        data = self.parse_output(recieved_serial)
+
+        while data["ActuatorDistance"] > 90:
+            recieved_serial = self.serial.getOutput()
+            data = self.parse_output(recieved_serial)
+
+        self.serial.drillMotor("backward")
+        self.serial.linActMotor("backward")
+
+        prevData = data
+
+        time.sleep(1)
+
+        recieved_serial = self.serial.getOutput()
+        data = self.parse_output(recieved_serial)
+
+        while abs(data["ActuatorDistance"] - prevData["ActuatorDistance"]) > 3: #rudimentary value as threshold
+            recieved_serial = self.serial.getOutput()
+            data = self.parse_output(recieved_serial)
+
+        self.serial.drillMotor("stop")
+        self.serial.linActMotor("stop")
+
+    def parse_output(data):
+        # Decode the byte data to a string
+        decoded_data = data.decode('utf-8')
+        
+        # Split the data into lines
+        lines = decoded_data.splitlines()
+        
+        # Initialize variables for parsing
+        parsed_data = []
+        capturing = False
+
+        # Parse the lines
+        for line in lines:
+            line = line.strip()  # Remove extra whitespace
+            
+            if line == "START":
+                capturing = True
+                parsed_data = []  # Clear data buffer for a new block
+            elif line == "END":
+                capturing = False
+                # Return the parsed block of data
+                return parsed_data
+            elif capturing:
+                if ":" in line:  # Parse key-value pairs
+                    key, value = line.split(":", 1)
+                    parsed_data.append((key.strip(), value.strip()))
+                else:
+                    parsed_data.append((line.strip(), None))  # Handle single-line entries
+        return None  # Return None if no complete block was found
+
+
+
+    def stage_2(self):
+        #activate conv grav system
+
         speed = Int16(20)
         self.motor_1_speed.publish(speed)
 
         while(1):
-            
-            break
+            recieved_serial = self.serial.getOutput()
+            data = self.parse_output(recieved_serial)
 
+            if data["Blocking"] == True:
+                break
         
-
-        return
-
-    def stage_2(self):
-        #activate plant
+        speed = Int16(0)
+        self.motor_1_speed.publish(speed)
 
         return
 
     def getSensorData():
+
+        return
 
 
 
