@@ -9,7 +9,7 @@ import serial
 import numpy as np
 import math
 
-DEBUG = false
+DEBUG = False
 
 timer_period = 0.1  # seconds
 
@@ -78,9 +78,6 @@ class read_gps_data(Node):
         gps1_lon = coords_gps1.lon
         gps2_lat = coords_gps2.lat
         gps2_lon = coords_gps2.lon
-
-        if DEBUG:
-            print(coorids.lon, coords.lat)
 
         self.get_bearing(gps1_lat, gps1_lon, gps2_lat, gps2_lon)
         self.aggregate_gps(gps1_lat, gps1_lon, gps2_lat, gps2_lon)

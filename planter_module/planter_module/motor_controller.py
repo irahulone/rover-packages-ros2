@@ -44,7 +44,7 @@ class MotorNode(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    motor_id = int(args[1]) if len(args) > 1 else 0  # Get motor ID from args
+    motor_id = int(args[1]) if len(args) > 1 else 1  # Get motor ID from args
     motor_node = MotorNode(motor_id)
     rclpy.spin(motor_node)
     motor_node.destroy_node()

@@ -19,7 +19,7 @@ class PlanterActionServer(Node):
     def __init__(self):
         self.serial = Serial("/dev/ttyACM0")
         self.serial.set()
-        super().__init__('fibonacci_action_server')
+        super().__init__('planter_action_server')
         self._action_server = ActionServer(
             self,
             planter,

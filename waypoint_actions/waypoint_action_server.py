@@ -13,7 +13,7 @@ from action import waypoint
 class WaypointActionServer(Node):
 
     def __init__(self):
-        super().__init__('fibonacci_action_server')
+        super().__init__('waypoint_action_server')
         self._action_server = ActionServer(
             self,
             waypoint,

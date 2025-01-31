@@ -106,9 +106,9 @@ bool accept_input(int timeout)
   {
     String command = input.substring(0, 2);
     if (command.compareTo("LF") == 0)
-      forwardMotor(&lin_motor, 200);
+      forwardMotor(&lin_motor, 300);
     else if (command.compareTo("LR") == 0)
-      reverseMotor(&lin_motor, 200);
+      reverseMotor(&lin_motor, 300);
     else if (command.compareTo("LO") == 0)
       turnOffMotor(&lin_motor);
     else if (command.compareTo("DF") == 0)
@@ -182,13 +182,23 @@ void setup()
 
 void loop()
 {
-  delay(50);
+//  delay(3000);
 
-  accept_input(5);
+accept_input(5);
+//
+int dispenser_dist = distanceSensor(dispenser_dist_sensor);
+int auger_dist = distanceSensor(auger_dist_sensor);
+bool b = blocking(dispenser_dist);
+////
+sendPayload(dispenser_dist, auger_dist, b);
 
-  int dispenser_dist = distanceSensor(dispenser_dist_sensor);
-  int auger_dist = distanceSensor(auger_dist_sensor);
-  bool b = blocking(dispenser_dist);
+//analogWrite(3, 100);
+//digitalWrite(2, HIGH);
+//
+//delay(3000);
+//
+//analogWrite(3, 100);
+//digitalWrite(2, LOW);
 
-  sendPayload(dispenser_dist, auger_dist, b);
+  
 }
