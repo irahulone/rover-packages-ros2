@@ -55,16 +55,22 @@ class PlanterActionServer(Node):
         return result
 
     def stage_1(self):
+
+        #turns all of the motors on to go forward
         self.serial.drillMotor("forward")
         self.serial.linActMotor("forward")
 
+        #gets the output from the Arduino
         recieved_serial = self.serial.getOutput()
         data = self.parse_output(recieved_serial)
 
+        #while the distance is greater than a certain amount, it will recieve data.
         while data["ActuatorDistance"] > 90:
             recieved_serial = self.serial.getOutput()
             data = self.parse_output(recieved_serial)
 
+
+        #stops the 
         self.serial.drillMotor("backward")
         self.serial.linActMotor("backward")
 
@@ -75,7 +81,8 @@ class PlanterActionServer(Node):
         recieved_serial = self.serial.getOutput()
         data = self.parse_output(recieved_serial)
 
-        while abs(data["ActuatorDistance"] - prevData["ActuatorDistance"]) > 3: #rudimentary value as threshold
+        while abs(data["ActuatorDistance"] - prevData["ActuatorDistance"]) > 3: #rudimentary value as threshold; should see if we should make it time based or position based
+            prevData = data
             recieved_serial = self.serial.getOutput()
             data = self.parse_output(recieved_serial)
 
